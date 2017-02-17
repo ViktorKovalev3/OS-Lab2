@@ -20,22 +20,25 @@ static void * func2_thread(void *arg){
         pthread_mutex_unlock(parsed_arg->mutext);
         sleep(1);
     }
-    pthread_exit((void*) "Thread 2 ended");
+    pthread_exit((void*) "\nThread 2 ended");
 }
 
 static void * func1_thread(void *arg){
     thread_arg* parsed_arg = (thread_arg*) arg;
-    while(!(parsed_arg->thread_ended)){
-        pthread_mutex_lock(parsed_arg->mutext);
-        for(int i = 0; i < 3; ++i){
-            cout << "1";
-            fflush(stdout);
-            sleep(1);
+    while (!(parsed_arg->thread_ended)){
+        while (!(parsed_arg->thread_ended) && !(pthread_mutex_trylock(parsed_arg->mutext) ) ){
+            for(int i = 0; i < 3; ++i){
+                cout << "1";
+                fflush(stdout);
+                sleep(1);
+            }
+            pthread_mutex_unlock(parsed_arg->mutext);
+            sleep(2);
         }
-        pthread_mutex_unlock(parsed_arg->mutext);
-        sleep(1);
+        cout << "\nTread 1 waiting unlock, and do something else\n";
+        sleep(2);
     }
-    pthread_exit((void*) "Thread 1 ended");
+    pthread_exit((void*) "\nThread 1 ended");
 }
 
 int main(int argc, char *argv[])
@@ -58,7 +61,7 @@ int main(int argc, char *argv[])
 
     getchar();
     thread1_arg.thread_ended = 1;
-    thread1_arg.thread_ended = 1;
+    thread2_arg.thread_ended = 1;
 
     if ( pthread_join( thread1, (void**) &exit_thread_code1 ) )
             return 1;
