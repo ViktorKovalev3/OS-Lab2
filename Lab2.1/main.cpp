@@ -35,7 +35,7 @@ static void * func1_thread(void *arg){
             pthread_mutex_unlock(parsed_arg->mutext);
             sleep(2);
         }
-        cout << "\nTread 1 waiting unlock, and do something else\n";
+        cout << "\nThread 1 waiting unlock, and do something else\n";
         sleep(2);
     }
     pthread_exit((void*) "\nThread 1 ended");
