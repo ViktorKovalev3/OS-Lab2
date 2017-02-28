@@ -1,74 +1,67 @@
 #include <iostream>
 #include <pthread.h>
+#include <string>
 #include <unistd.h>
 
 using namespace std;
 struct thread_arg{
     bool thread_ended = 0;
+    unsigned thread_num = 0;
     pthread_mutex_t* mutext;
 };
 
-static void * func2_thread(void *arg){
-    thread_arg* parsed_arg = (thread_arg*) arg;
-    while(!(parsed_arg->thread_ended)){
-        pthread_mutex_lock(parsed_arg->mutext);
-        for(int i = 0; i < 3; ++i){
-            cout << "2";
-            fflush(stdout);
-            sleep(1);
-        }
-        pthread_mutex_unlock(parsed_arg->mutext);
-        sleep(1);
-    }
-    pthread_exit((void*) "\nThread 2 ended");
-}
-
-static void * func1_thread(void *arg){
+static void * thread_func(void *arg){
     thread_arg* parsed_arg = (thread_arg*) arg;
     while (!(parsed_arg->thread_ended)){
         while (!(parsed_arg->thread_ended) && !(pthread_mutex_trylock(parsed_arg->mutext) ) ){
             for(int i = 0; i < 3; ++i){
-                cout << "1";
+                cout << parsed_arg->thread_num;
                 fflush(stdout);
                 sleep(1);
             }
             pthread_mutex_unlock(parsed_arg->mutext);
             sleep(2);
         }
-        cout << "\nThread 1 waiting unlock, and do something else\n";
+        cout << "\nThread" << parsed_arg->thread_num << "waiting unlock, and do something else\n";
         sleep(2);
     }
-    pthread_exit((void*) "\nThread 1 ended");
+    string tmp_end_str = "\nThread" + to_string(parsed_arg->thread_num) + "ended";
+    pthread_exit((void*) tmp_end_str.c_str());
 }
 
-int main(int argc, char *argv[])
+//Counting start with 0
+#define amount_of_threads 2
+
+int main(void)
 {
-    pthread_t thread1, thread2;
-    thread_arg thread1_arg, thread2_arg;
-    char* exit_thread_code1 = "";
-    char* exit_thread_code2 = "";
+    pthread_t  threads[amount_of_threads];
+    thread_arg threads_args[amount_of_threads];
 
     pthread_mutex_t my_super_mutex;
     if(pthread_mutex_init(&my_super_mutex, NULL))
         cerr << "Cant init mutex";
-    thread1_arg.mutext = &my_super_mutex;
-    thread2_arg.mutext = &my_super_mutex;
 
-    if ( pthread_create( &thread1, NULL, func1_thread, &thread1_arg ) )
-            return 1;
-    if ( pthread_create( &thread2, NULL, func2_thread, &thread1_arg ) )
-            return 1;
+    for (int i = 0; i < amount_of_threads; ++i){
+        threads_args[i].mutext      = &my_super_mutex;
+        threads_args[i].thread_num  = i;
+        if ( pthread_create( &threads[i], NULL, thread_func, &threads_args[i] ) )
+                return 1;
+    }
 
     getchar();
-    thread1_arg.thread_ended = 1;
-    thread2_arg.thread_ended = 1;
 
-    if ( pthread_join( thread1, (void**) &exit_thread_code1 ) )
-            return 1;
-    cout<< exit_thread_code1 << endl;
-    if ( pthread_join( thread2, (void**) &exit_thread_code2 ) )
-            return 1;
-    cout<< exit_thread_code2 << endl;
+    //Close all threads after press ENTER
+    for (int i = 0; i < amount_of_threads; ++i){
+        threads_args[i].thread_ended = 1;
+    }
+
+    //Waiting while all threads ended
+    for (int i = 0; i < amount_of_threads; ++i){
+        char* exit_thread_code;
+        if ( pthread_join( threads[i], (void**) &exit_thread_code ) )
+                return 1;
+        cout<< exit_thread_code << endl;
+    }
 
     return 0;
 }
